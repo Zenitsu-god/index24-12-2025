@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trust Wallet TRON Personal DApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- WalletConnect Provider -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.2/dist/index.umd.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 30px;
+    }
+    button {
+      padding: 12px;
+      margin: 6px 0;
+      width: 100%;
+      font-weight: bold;
+    }
+    .box {
+      background: #020617;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 6px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🔐 Trust Wallet Personal dApp</h2>
+
+<button onclick="connect()">Connect Trust Wallet</button>
+<button onclick="signMsg()">Sign Message</button>
+
+<div class="box">
+  <div>Status: <span id="status">Disconnected</span></div>
+  <div>Address: <span id="address">-</span></div>
+  <div>Signature:</div>
+  <div id="sig">-</div>
+</div>
+
+<script>
+let provider;
+let adapter;
+
+class TrustWalletTronAdapter {
+  constructor(provider) {
+    this.provider = provider;
+    this.address = null;
+  }
+
+  async connect() {
+    const accounts = await this.provider.request({
+      method: "eth_requestAccounts"
+    });
+    this.address = accounts[0];
+    return this.address;
+  }
+
+  async signMessage(msg) {
+    return await this.provider.request({
+      method: "personal_sign",
+      params: [msg, this.address]
+    });
+  }
+}
+
+async function connect() {
+  provider = await window.EthereumProvider.init({
+    projectId: "YOUR_WALLETCONNECT_PROJECT_ID",
+    chains: [1],
+    showQrModal: true
+  });
+
+  await provider.connect();
+
+  adapter = new TrustWalletTronAdapter(provider);
+  const addr = await adapter.connect();
+
+  document.getElementById("status").innerText = "Connected";
+  document.getElementById("address").innerText = addr;
+}
+
+async function signMsg() {
+  if (!adapter) return alert("Connect wallet first");
+
+  const msg = "I approve this action for my personal dApp";
+  const sig = await adapter.signMessage(msg);
+
+  document.getElementById("sig").innerText = sig;
+}
+</script>
+
+</body>
+</html>
