@@ -1,34 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8" />
   <title>Trust Wallet – TRON Approval (Personal)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- 🔧 REQUIRED POLYFILL -->
-  <script>
-    window.process = { env: {} };
-  </script>
-
-  <!-- ✅ CORRECT WalletConnect UMD BUILD -->
-  <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.13.2/dist/umd/index.min.js"></script>
+  <!-- Web3Modal Standalone (OFFICIAL & STABLE) -->
+  <script src="https://unpkg.com/@web3modal/standalone@2.4.3/dist/index.min.js"></script>
 
   <!-- TronWeb -->
   <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.2/dist/TronWeb.js"></script>
 
   <style>
-    body { background:#0f172a; color:#fff; font-family:Arial; padding:20px }
-    button { padding:12px; width:100%; margin:8px 0; font-weight:bold }
-    .box { background:#020617; padding:12px; margin-top:12px; border-radius:6px }
+    body {
+      background: #0f172a;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    button {
+      padding: 12px;
+      width: 100%;
+      margin: 8px 0;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .box {
+      background: #020617;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 6px;
+      word-break: break-all;
+    }
+    .warn {
+      color: #facc15;
+      font-size: 14px;
+    }
   </style>
 </head>
 
 <body>
 
-<h3>🔐 Trust Wallet Personal dApp</h3>
+<h3>🔐 Trust Wallet – TRON Approval (Personal)</h3>
 
-<button onclick="connect()">Connect Trust Wallet</button>
-<button onclick="approve()">Approve Token</button>
+<p class="warn">
+  ⚠️ This dApp will request an explicit TRC20 approval.<br>
+  Always verify spender & amount inside Trust Wallet.
+</p>
+
+<button onclick="connect()">1️⃣ Connect Trust Wallet</button>
+<button onclick="approve()">2️⃣ Approve USDT</button>
 
 <div class="box">
   <div>Status: <span id="status">Disconnected</span></div>
@@ -36,45 +57,54 @@
 </div>
 
 <script>
+/* ================= CONFIG ================= */
+
 const PROJECT_ID = "e75f4f36f23f8e6dc1f84a86fdbfa4ea";
 
-// ⚠️ VERIFY THESE CAREFULLY
-const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // USDT
-const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";       // your MAIN wallet
-const AMOUNT = "1000000"; // 1 USDT (6 decimals)
+// USDT TRC20
+const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
+// 👈 YOUR MAIN WALLET (SPENDER)
+const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";
+
+// 1 USDT (6 decimals)
+const AMOUNT = "1000000";
+
+/* ========================================= */
+
+let modal;
 let wcProvider;
 let tronWeb;
 
+/* ============ CONNECT FLOW ============ */
+
 async function connect() {
-  const WCProvider = window.WalletConnectEthereumProvider?.default;
-
-  if (!WCProvider) {
-    alert("WalletConnect provider not loaded");
-    return;
-  }
-
-  wcProvider = await WCProvider.init({
+  modal = new window.Web3ModalStandalone({
     projectId: PROJECT_ID,
-    chains: [1],      // dummy EVM chain (session only)
-    showQrModal: true
+    themeMode: "dark",
+    walletConnectVersion: 2,
+    chains: ["eip155:1"] // dummy EVM chain (session only)
   });
 
-  await wcProvider.connect();
+  // Open QR / deep link
+  wcProvider = await modal.connect();
 
   tronWeb = new TronWeb({
     fullHost: "https://api.trongrid.io"
   });
 
-  document.getElementById("status").innerText = "Connected (session)";
+  document.getElementById("status").innerText = "WalletConnect session active";
 }
+
+/* ============ APPROVAL FLOW ============ */
 
 async function approve() {
   if (!wcProvider || !tronWeb) {
-    alert("Connect wallet first");
+    alert("Connect Trust Wallet first");
     return;
   }
 
+  // Build approve transaction
   const contractHex = tronWeb.address.toHex(TOKEN_CONTRACT);
 
   const { transaction } =
@@ -88,7 +118,7 @@ async function approve() {
       ]
     );
 
-  // 🔥 Trust Wallet–specific (non-standard)
+  // 🔥 Trust Wallet–specific signing
   const signedTx = await wcProvider.request({
     method: "tron_signTransaction",
     params: [transaction]
@@ -96,7 +126,7 @@ async function approve() {
 
   const result = await tronWeb.trx.sendRawTransaction(signedTx);
 
-  document.getElementById("txid").innerText = result.txid;
+  document.getElementById("txid").innerText = result.txid || "Broadcast failed";
 }
 </script>
 
